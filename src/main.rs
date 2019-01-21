@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate serde_derive;
+
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::prelude::*;
@@ -10,22 +13,17 @@ use i3ipc::Subscription;
 use i3ipc::event::Event;
 use i3ipc::reply;
 
-const COLOR_CLASSES: [&'static str; 6] = [
-    "#C594C5",
-    "#6699CC",
-    "#5FB3B3",
-    "#99C794",
-    "#FAC863",
-    "#F99157",
-    // "@base0E",
-    // "@base0D",
-    // "@base0C",
-    // "@base0B",
-    // "@base0A",
-    // "@base09",
-];
+const PACKAGE_NAME: &'static str = env!("CARGO_PKG_NAME");
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Config {
+    background_colors: Vec<String>,
+    focused_foreground_color: String,
+    version: String,
+}
 
 fn workspace_module_output(
+    config: &Config,
     workspace: &reply::Workspace,
     last_workspace_num: i32,
     workspace_count: i32,
@@ -33,14 +31,14 @@ fn workspace_module_output(
     let mut module_text = workspace.num.to_string();
     if workspace.focused {
         module_text = format!(
-            // "<span color=\"@base08\">{}</span>",
-            "<span color=\"#EC5F67\">{}</span>",
+            "<span color=\"{}\">{}</span>",
+            config.focused_foreground_color,
             module_text,
         );
     }
 
-    let color = COLOR_CLASSES[(workspace.num-1) as usize % COLOR_CLASSES.len()];
-    let left_color = COLOR_CLASSES[(last_workspace_num-1) as usize % COLOR_CLASSES.len()];
+    let color = &config.background_colors[(workspace.num-1) as usize % config.background_colors.len()];
+    let left_color = &config.background_colors[(last_workspace_num-1) as usize % config.background_colors.len()];
 
     if workspace.num >= workspace_count && workspace.num == 1 {
         return format!(
@@ -80,6 +78,7 @@ fn workspace_module_output(
 }
 
 fn refresh_workspaces(
+    config: &Config,
     workspaces: Vec<reply::Workspace>,
     output_dir: &std::path::Path,
     workspace_module_outputs: &mut HashMap<i32, String>,
@@ -90,6 +89,7 @@ fn refresh_workspaces(
     let mut last_workspace_num = 1;
     for workspace in workspaces {
         let module_output = workspace_module_output(
+            config,
             &workspace,
             last_workspace_num,
             workspace_count,
@@ -138,6 +138,7 @@ fn refresh_workspaces(
 
 #[derive(Debug)]
 struct WorkspaceOutputManager<'a> {
+    config: Config,
     wm_connection: I3Connection,
     wm_event_listener: I3EventListener,
     workspace_module_outputs: HashMap<i32, String>,
@@ -145,8 +146,12 @@ struct WorkspaceOutputManager<'a> {
 }
 
 impl<'a> WorkspaceOutputManager<'a> {
-    fn new(output_dir: &'a std::path::Path) -> Result<WorkspaceOutputManager<'a>, Error> {
+    fn new(
+        output_dir: &'a std::path::Path,
+        config: Config,
+    ) -> Result<WorkspaceOutputManager<'a>, Error> {
         return Ok(WorkspaceOutputManager{
+            config: config,
             output_dir: output_dir,
             wm_connection: I3Connection::connect()?,
             wm_event_listener: I3EventListener::connect()?,
@@ -163,6 +168,7 @@ impl<'a> WorkspaceOutputManager<'a> {
 
         let workspaces = self.wm_connection.get_workspaces()?.workspaces;
         refresh_workspaces(
+            &self.config,
             workspaces,
             self.output_dir,
             &mut self.workspace_module_outputs
@@ -173,6 +179,7 @@ impl<'a> WorkspaceOutputManager<'a> {
                 Event::WorkspaceEvent(_) => {
                     let workspaces = self.wm_connection.get_workspaces()?.workspaces;
                     refresh_workspaces(
+                        &self.config,
                         workspaces,
                         self.output_dir,
                         &mut self.workspace_module_outputs
@@ -188,13 +195,28 @@ impl<'a> WorkspaceOutputManager<'a> {
 
 fn main() {
     let output_dir = if let Some(cache_dir) = dirs::cache_dir() {
-        cache_dir.join("waybar-sway-workspaces")
+        cache_dir.join(PACKAGE_NAME)
     } else {
         eprintln!("No cache dir available for output files");
         std::process::exit(1);
     };
 
-    let mut workspace_output_manager: WorkspaceOutputManager = match WorkspaceOutputManager::new(&output_dir) {
+    let config_path = if let Some(config_dir) = dirs::config_dir() {
+        config_dir.join(PACKAGE_NAME).join("config")
+    } else {
+        eprintln!("No config file available");
+        std::process::exit(1);
+    };
+
+    let mut config_file = fs::File::open(config_path).unwrap();
+    let mut config_contents = String::new();
+    config_file.read_to_string(&mut config_contents).unwrap();
+    let config: Config = serde_yaml::from_str(&config_contents).unwrap();
+
+    let mut workspace_output_manager: WorkspaceOutputManager = match WorkspaceOutputManager::new(
+        &output_dir,
+        config,
+    ) {
         Ok(workspace_output_manager) => workspace_output_manager,
         Err(e) => {
             eprintln!("Error instantiating workspace output manager: {}", e);

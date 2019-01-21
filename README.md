@@ -8,11 +8,11 @@ configure Waybar to tail the workspace output files:
 
 ```
 "custom/sway-workspaces-1": {
-  "exec": "tail --sleep-interval 0.6 -F $HOME/.cache/waybar-sway-workspaces/1 2>/dev/null",
+  "exec": "tail --sleep-interval 0.6 -F ~/.cache/waybar-sway-workspaces/1 2>/dev/null",
   "on-click": "swaymsg workspace 1"
 },
 "custom/sway-workspaces-2": {
-  "exec": "tail --sleep-interval 0.6 -F $HOME/.cache/waybar-sway-workspaces/2 2>/dev/null",
+  "exec": "tail --sleep-interval 0.6 -F ~/.cache/waybar-sway-workspace-output-manager/2 2>/dev/null",
   "on-click": "swaymsg workspace 2"
 },
 ...
@@ -21,8 +21,22 @@ configure Waybar to tail the workspace output files:
 Configure custom workspace modules up to the max number of Sway workspaces you
 want to have tracked. Workspaces that don't exist yet will be ignored.
 
-Right now the output format and colors are hard-coded, but they should be made
-customizable via config file.
+A config file must also be installed to control the workspace module colors.
+The config file should live at `~/.config/waybar-sway-workspace-output-manager/config`
+and should look like this, swapping in whatever colors you want:
+
+```yaml
+---
+version: 0.1
+focused_foreground_color: "#EC5F67"
+background_colors:
+  - "#C594C5"
+  - "#6699CC"
+  - "#5FB3B3"
+  - "#99C794"
+  - "#FAC863"
+  - "#F99157"
+```
 
 ### Developing
 
