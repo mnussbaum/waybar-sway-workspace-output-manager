@@ -3,8 +3,8 @@
 This project watches for Sway workspace events and writes Waybar custom module
 text to one output file per Sway workspace. This way I can configure a custom
 appearance for each Sway workspace in Waybar by configuring each one as a
-separate custom module. Run the workspace manager as a daemon and then config
-Waybar like this:
+separate custom module. Run the workspace output manager as a daemon and then
+configure Waybar to tail the workspace output files:
 
 ```
 "custom/sway-workspaces-1": {
