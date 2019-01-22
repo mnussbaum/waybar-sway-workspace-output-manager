@@ -3,6 +3,14 @@ name = "waybar-sway-workspace-output-manager"
 version = "0.1.0"
 authors = ["mnussbaum <michaelnussbaum08@gmail.com>"]
 edition = "2018"
+description = "A daemon that outputs Waybar custom module text for Sway workspaces"
+documentation = "https://github.com/mnussbaum/waybar-sway-workspace-output-manager"
+homepage = "https://github.com/mnussbaum/waybar-sway-workspace-output-manager"
+repository = "https://github.com/mnussbaum/waybar-sway-workspace-output-manager"
+readme = "README.md"
+
+keywords = ["sway", "waybar"]
+license = "MIT"
 
 [dependencies]
 dirs = "1.0"
