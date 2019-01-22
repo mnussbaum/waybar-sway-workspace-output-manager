@@ -25,7 +25,7 @@ struct Config {
 fn workspace_module_output(
     config: &Config,
     workspace: &reply::Workspace,
-    last_workspace_num: i32,
+    last_workspace_num: Option<i32>,
     workspace_count: i32,
 ) -> String {
     let mut module_text = workspace.num.to_string();
@@ -38,9 +38,13 @@ fn workspace_module_output(
     }
 
     let color = &config.background_colors[(workspace.num-1) as usize % config.background_colors.len()];
-    let left_color = &config.background_colors[(last_workspace_num-1) as usize % config.background_colors.len()];
+    let left_color = if let Some(last_workspace_num) = last_workspace_num {
+        &config.background_colors[(last_workspace_num-1) as usize % config.background_colors.len()]
+    } else {
+        color
+    };
 
-    if workspace.num >= workspace_count && workspace.num == 1 {
+    if workspace.num >= workspace_count && workspace_count == 1 {
         return format!(
             "<span background=\"{}\"> {} </span><span color=\"{}\"></span>\n",
             color,
@@ -86,7 +90,7 @@ fn refresh_workspaces(
     let workspace_count = workspaces.len() as i32;
 
     let mut latest_workspace_nums: HashSet<i32> = HashSet::new();
-    let mut last_workspace_num = 1;
+    let mut last_workspace_num: Option<i32> = None;
     for workspace in workspaces {
         let module_output = workspace_module_output(
             config,
@@ -110,7 +114,7 @@ fn refresh_workspaces(
         }
         workspace_module_outputs.insert(workspace.num, module_output);
         latest_workspace_nums.insert(workspace.num);
-        last_workspace_num = workspace.num
+        last_workspace_num = Some(workspace.num);
     }
 
     for existing_workspace_output in output_dir.read_dir()? {
