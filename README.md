@@ -29,6 +29,7 @@ and should look like this, swapping in whatever colors you want:
 ---
 version: 0.1
 focused_foreground_color: "#EC5F67"
+minimum_workspace_count: 5
 background_colors:
   - "#C594C5"
   - "#6699CC"

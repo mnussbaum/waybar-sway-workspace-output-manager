@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate serde_derive;
 
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::prelude::*;
@@ -19,7 +20,15 @@ const PACKAGE_NAME: &'static str = env!("CARGO_PKG_NAME");
 struct Config {
     background_colors: Vec<String>,
     focused_foreground_color: String,
+
+    #[serde(default = "default_minimum_workspace_count")]
+    minimum_workspace_count: usize,
+
     version: String,
+}
+
+fn default_minimum_workspace_count() -> usize {
+    return 0;
 }
 
 fn workspace_module_output(
@@ -134,8 +143,8 @@ fn refresh_workspaces(
 #[derive(Debug)]
 struct WorkspaceOutputManager<'a> {
     config: Config,
-    wm_connection: I3Connection,
-    wm_event_listener: I3EventListener,
+    wm_connection: RefCell<I3Connection>,
+    wm_event_listener: RefCell<I3EventListener>,
     workspace_module_outputs: HashMap<i32, String>,
     output_dir: &'a std::path::Path,
 }
@@ -148,34 +157,33 @@ impl<'a> WorkspaceOutputManager<'a> {
         return Ok(WorkspaceOutputManager {
             config: config,
             output_dir: output_dir,
-            wm_connection: I3Connection::connect()?,
-            wm_event_listener: I3EventListener::connect()?,
+            wm_connection: RefCell::new(I3Connection::connect()?),
+            wm_event_listener: RefCell::new(I3EventListener::connect()?),
             workspace_module_outputs: HashMap::new(),
         });
     }
 
-    fn run(&mut self) -> Result<(), Error> {
+    fn run(mut self) -> Result<(), Error> {
         if self.output_dir.exists() {
             fs::remove_dir_all(self.output_dir)?;
         }
         fs::create_dir_all(self.output_dir)?;
-        self.wm_event_listener.subscribe(&[Subscription::Workspace])?;
+        let mut wm_event_listener = self.wm_event_listener.borrow_mut();
+        wm_event_listener.subscribe(&[Subscription::Workspace])?;
 
-        let workspaces = self.wm_connection.get_workspaces()?.workspaces;
         refresh_workspaces(
             &self.config,
-            workspaces,
+            self.get_workspaces()?,
             self.output_dir,
             &mut self.workspace_module_outputs,
         )?;
 
-        for event in self.wm_event_listener.listen() {
+        for event in wm_event_listener.listen() {
             match event? {
                 Event::WorkspaceEvent(_) => {
-                    let workspaces = self.wm_connection.get_workspaces()?.workspaces;
                     refresh_workspaces(
                         &self.config,
-                        workspaces,
+                        self.get_workspaces()?,
                         self.output_dir,
                         &mut self.workspace_module_outputs,
                     )?;
@@ -185,6 +193,47 @@ impl<'a> WorkspaceOutputManager<'a> {
         }
 
         return Ok(());
+    }
+
+    fn get_workspaces(&self) -> Result<Vec<reply::Workspace>, Error> {
+        let mut presented_workspaces_by_num: HashMap<i32, reply::Workspace> = HashMap::new();
+        let actual_workspaces = self.wm_connection.borrow_mut().get_workspaces()?.workspaces;
+        let mut actual_workspaces_by_num: HashMap<i32, reply::Workspace> = HashMap::new();
+        for workspace in actual_workspaces {
+            actual_workspaces_by_num.insert(workspace.num, workspace);
+        }
+
+        for workspace_num in 1..=self.config.minimum_workspace_count {
+            match actual_workspaces_by_num.remove(&(workspace_num as i32)) {
+                None => presented_workspaces_by_num.insert(
+                    workspace_num as i32,
+                    reply::Workspace {
+                        num: workspace_num as i32,
+                        name: "".to_string(),
+                        visible: false,
+                        focused: false,
+                        urgent: false,
+                        rect: (0, 0, 0, 0),
+                        output: "".to_string(),
+                    },
+                ),
+                Some(workspace) => {
+                    presented_workspaces_by_num.insert(workspace.num as i32, workspace)
+                }
+            };
+        }
+
+        for (_, workspace) in actual_workspaces_by_num {
+            presented_workspaces_by_num.insert(workspace.num, workspace);
+        }
+
+        let mut presented_workspaces = Vec::new();
+        for (_, workspace) in presented_workspaces_by_num.into_iter() {
+            presented_workspaces.push(workspace);
+        }
+
+        presented_workspaces.sort_by(|a, b| a.num.cmp(&b.num));
+        return Ok(presented_workspaces);
     }
 }
 
