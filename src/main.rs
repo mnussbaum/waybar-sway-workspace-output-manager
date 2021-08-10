@@ -56,14 +56,17 @@ fn workspace_module_output(
 
     if workspace.num >= workspace_count && workspace_count == 1 {
         return format!(
-            "<span background=\"{}\"> {} </span><span color=\"{}\"></span>\n",
+            "<span background=\"{}\"> {} </span><span size=\"large\" color=\"{}\"></span>\n",
             color, module_text, color,
         );
     } else if workspace.num == 1 {
-        return format!("<span background=\"{}\"> {}</span>\n", color, module_text,);
+        return format!(
+            "<span size=\"large\" background=\"{}\"> {}</span>\n",
+            color, module_text,
+        );
     } else if workspace.num >= workspace_count {
         return format!(
-            "<span background=\"{}\" color=\"{}\"></span><span background=\"{}\" color=\"{}\"></span><span background=\"{}\"> {} </span><span color=\"{}\"></span>\n",
+            "<span size=\"large\" background=\"{}\" color=\"{}\"></span><span size=\"large\" background=\"{}\" color=\"{}\"></span><span background=\"{}\"> {} </span><span size=\"large\" color=\"{}\"></span>\n",
             left_color,
             left_color,
             left_color,
@@ -74,7 +77,7 @@ fn workspace_module_output(
         );
     } else {
         return format!(
-            "<span background=\"{}\" color=\"{}\"></span><span background=\"{}\" color=\"{}\"></span><span background=\"{}\"> {}</span>\n",
+            "<span size=\"large\" background=\"{}\" color=\"{}\"></span><span size=\"large\" background=\"{}\" color=\"{}\"></span><span background=\"{}\"> {}</span>\n",
             left_color,
             left_color,
             left_color,
